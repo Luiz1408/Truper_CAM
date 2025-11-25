@@ -58,7 +58,7 @@ namespace ExcelProcessorApi.Controllers
 
                 // Revisiones hoy (archivos subidos hoy)
                 var revisionesHoy = await _context.ExcelUploads
-                    .Where(u => u.CreatedAt >= today && u.CreatedAt < tomorrow)
+                    .Where(u => u.UploadedAt >= today && u.UploadedAt < tomorrow)
                     .CountAsync();
 
                 // Entregas de turno pendientes (no finalizadas)

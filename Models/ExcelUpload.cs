@@ -30,6 +30,14 @@ namespace ExcelProcessorApi.Models
         [Required]
         public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
 
+        // Propiedad para compatibilidad con el controlador - mapeada a UploadedAt
+        [NotMapped]
+        public DateTime CreatedAt 
+        { 
+            get => UploadedAt; 
+            set => UploadedAt = value; 
+        }
+
         [Required]
         public int UploadedByUserId { get; set; }
 

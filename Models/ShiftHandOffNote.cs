@@ -38,6 +38,27 @@ namespace ExcelProcessorApi.Models
 
         public DateTime? FinalizedAt { get; set; }
 
+        // Propiedades adicionales para compatibilidad con DashboardController
+        [MaxLength(50)]
+        public string Turno { get; set; } = string.Empty;
+
+        [MaxLength(50)]
+        public string Area { get; set; } = string.Empty;
+
+        [MaxLength(1000)]
+        public string Nota { get; set; } = string.Empty;
+
+        public DateTime? AcknowledgedAt { get; set; }
+
+        public bool IsAcknowledged { get; set; } = false;
+
+        public int? AcknowledgedByUserId { get; set; }
+
+        [ForeignKey(nameof(AcknowledgedByUserId))]
+        public User? AcknowledgedByUser { get; set; }
+
+        public bool IsFinalized { get; set; } = false;
+
         public ICollection<ShiftHandOffAcknowledgement> Acknowledgements { get; set; } = new List<ShiftHandOffAcknowledgement>();
     }
 
