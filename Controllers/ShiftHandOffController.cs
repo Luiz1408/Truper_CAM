@@ -23,6 +23,8 @@ namespace ExcelProcessorApi.Controllers
         [HttpGet]
         public async Task<IActionResult> GetNotes()
         {
+            Console.WriteLine($"=== DEBUG BACKEND GET NOTES ===");
+            
             var notes = await _context.ShiftHandOffNotes
                 .Include(n => n.CreatedByUser)
                 .Include(n => n.FinalizedByUser)
@@ -32,7 +34,28 @@ namespace ExcelProcessorApi.Controllers
                 .OrderByDescending(n => n.CreatedAt)
                 .ToListAsync();
 
+            Console.WriteLine($"📋 Total notas encontradas: {notes.Count}");
+            
+            foreach (var note in notes)
+            {
+                Console.WriteLine($"📝 Nota {note.Id}:");
+                Console.WriteLine($"  - Status: {note.Status}");
+                Console.WriteLine($"  - Type: {note.Type}");
+                Console.WriteLine($"  - FinalizedAt: {note.FinalizedAt}");
+                Console.WriteLine($"  - FinalizedByUserId: {note.FinalizedByUserId}");
+                Console.WriteLine($"  - FinalizedByUser: {note.FinalizedByUser?.FirstName} {note.FinalizedByUser?.LastName}");
+                Console.WriteLine($"  - Acknowledgements count: {note.Acknowledgements.Count}");
+                
+                foreach (var ack in note.Acknowledgements)
+                {
+                    Console.WriteLine($"    🔄 CoordinatorUserId={ack.CoordinatorUserId}, IsAcknowledged={ack.IsAcknowledged}, AcknowledgedAt={ack.AcknowledgedAt}");
+                }
+            }
+
             var response = notes.Select(MapNoteToResponse);
+            
+            Console.WriteLine($"📤 Enviando {response.Count()} notas al frontend");
+            Console.WriteLine($"=== FIN DEBUG BACKEND GET NOTES ===");
 
             return Ok(new { notes = response });
         }
@@ -55,6 +78,7 @@ namespace ExcelProcessorApi.Controllers
             {
                 Description = dto.Description?.Trim() ?? string.Empty,
                 Status = string.IsNullOrWhiteSpace(dto.Status) ? "Pendiente" : dto.Status.Trim(),
+                Type = string.IsNullOrWhiteSpace(dto.Type) ? "informativo" : dto.Type.Trim(),
                 AssignedCoordinatorId = dto.AssignedCoordinatorId,
                 CreatedByUserId = currentUser.Id,
                 CreatedAt = DateTime.UtcNow,
@@ -88,7 +112,7 @@ namespace ExcelProcessorApi.Controllers
 
             var createdNote = await _context.ShiftHandOffNotes
                 .Include(n => n.CreatedByUser)
-                .Include(n => n.FinalizedByUser)
+                .Include(n => n.FinalizedByUser)  // ← ESTA LÍNEA FALTABA
                 .Include(n => n.Acknowledgements)
                     .ThenInclude(a => a.CoordinatorUser)
                 .AsNoTracking()
@@ -104,6 +128,10 @@ namespace ExcelProcessorApi.Controllers
         [Authorize(Roles = RoleNames.Administrator + "," + RoleNames.Coordinator)]
         public async Task<IActionResult> UpdateNote(int id, [FromBody] UpsertShiftHandOffNoteDto dto)
         {
+            Console.WriteLine($"=== DEBUG BACKEND UPDATE NOTE ===");
+            Console.WriteLine($"📝 Nota ID: {id}");
+            Console.WriteLine($"📊 DTO recibido: {System.Text.Json.JsonSerializer.Serialize(dto)}");
+            
             var note = await _context.ShiftHandOffNotes.FirstOrDefaultAsync(n => n.Id == id);
             if (note == null)
             {
@@ -115,6 +143,8 @@ namespace ExcelProcessorApi.Controllers
             {
                 return Unauthorized(new { message = "Usuario no autenticado" });
             }
+
+            Console.WriteLine($"👤 Usuario actual: {currentUser.Username} (ID: {currentUser.Id})");
 
             var isAdmin = string.Equals(currentUser.Role?.Name, RoleNames.Administrator, StringComparison.OrdinalIgnoreCase);
 
@@ -133,16 +163,49 @@ namespace ExcelProcessorApi.Controllers
                 var trimmedStatus = dto.Status.Trim();
                 note.Status = trimmedStatus;
 
-                if (string.Equals(trimmedStatus, "Finalizado", StringComparison.OrdinalIgnoreCase))
+                Console.WriteLine($"🔄 Cambiando status a: {trimmedStatus}");
+                Console.WriteLine($"📅 FinalizedAt del DTO: {dto.FinalizedAt}");
+                Console.WriteLine($"🆔 FinalizedByUserId del DTO: {dto.FinalizedByUserId}");
+
+                // Si el frontend envía datos de finalización, usarlos
+                if (dto.FinalizedAt != null && dto.FinalizedByUserId.HasValue)
                 {
+                    Console.WriteLine("✅ Usando datos de finalización del DTO");
+                    Console.WriteLine($"📅 Fecha recibida: {dto.FinalizedAt}");
+                    Console.WriteLine($"🆔 ID recibido: {dto.FinalizedByUserId}");
+                    
+                    // Parse seguro de la fecha
+                    if (DateTime.TryParse(dto.FinalizedAt, out DateTime parsedDate))
+                    {
+                        note.FinalizedAt = parsedDate;
+                        Console.WriteLine($"✅ Fecha parseada: {parsedDate}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"❌ Error al parsear fecha: {dto.FinalizedAt}");
+                        note.FinalizedAt = DateTime.UtcNow;
+                    }
+                    
+                    note.FinalizedByUserId = dto.FinalizedByUserId.Value;
+                    Console.WriteLine($"✅ ID asignado: {note.FinalizedByUserId}");
+                }
+                // Si es un estatus finalizado pero no hay datos, usar el usuario actual
+                else if (trimmedStatus == "Completado" || trimmedStatus == "Cancelado")
+                {
+                    Console.WriteLine("⚠️ Estatus finalizado pero sin datos del DTO, usando usuario actual");
                     note.FinalizedByUserId = currentUser.Id;
                     note.FinalizedAt = DateTime.UtcNow;
+                    Console.WriteLine($"💾 Asignado: FinalizedAt={note.FinalizedAt}, FinalizedByUserId={note.FinalizedByUserId}");
                 }
+                // Si no es estatus finalizado, limpiar
                 else
                 {
+                    Console.WriteLine("🧹 Limpiando datos de finalización");
                     note.FinalizedByUserId = null;
                     note.FinalizedAt = null;
                 }
+
+                Console.WriteLine($"💾 Datos finales antes de guardar: FinalizedAt={note.FinalizedAt}, FinalizedByUserId={note.FinalizedByUserId}");
             }
 
             if (dto.AssignedCoordinatorId.HasValue)
@@ -164,14 +227,39 @@ namespace ExcelProcessorApi.Controllers
             note.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
+            Console.WriteLine($"✅ Cambios guardados en BD");
+            
+            // Verificación post-guardado
+            var savedNote = await _context.ShiftHandOffNotes
+                .AsNoTracking()
+                .FirstOrDefaultAsync(n => n.Id == note.Id);
+            
+            Console.WriteLine($"🔍 Verificación post-guardado:");
+            Console.WriteLine($"  - FinalizedAt en BD: {savedNote?.FinalizedAt}");
+            Console.WriteLine($"  - FinalizedByUserId en BD: {savedNote?.FinalizedByUserId}");
+            Console.WriteLine($"  - Status en BD: {savedNote?.Status}");
+            
+            // Verificar si el usuario se cargó correctamente
+            var noteWithUser = await _context.ShiftHandOffNotes
+                .Include(n => n.FinalizedByUser)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(n => n.Id == note.Id);
+            
+            Console.WriteLine($"  - FinalizedByUser cargado: {noteWithUser?.FinalizedByUser != null}");
+            if (noteWithUser?.FinalizedByUser != null)
+            {
+                Console.WriteLine($"  - FinalizedByUser.Name: {noteWithUser.FinalizedByUser.FirstName} {noteWithUser.FinalizedByUser.LastName}");
+            }
 
             var updatedNote = await _context.ShiftHandOffNotes
                 .Include(n => n.CreatedByUser)
-                .Include(n => n.FinalizedByUser)
+                .Include(n => n.FinalizedByUser)  // ← ESTA LÍNEA FALTABA
                 .Include(n => n.Acknowledgements)
                     .ThenInclude(a => a.CoordinatorUser)
                 .AsNoTracking()
                 .FirstAsync(n => n.Id == note.Id);
+
+            Console.WriteLine($"=== FIN DEBUG BACKEND UPDATE NOTE ===");
 
             return Ok(new { note = MapNoteToResponse(updatedNote) });
         }
@@ -179,18 +267,31 @@ namespace ExcelProcessorApi.Controllers
         [HttpPut("{id}/acknowledgements")]
         public async Task<IActionResult> ToggleAcknowledgement(int id, [FromBody] ShiftHandOffAcknowledgementToggleDto dto)
         {
+            Console.WriteLine($"=== DEBUG BACKEND ACKNOWLEDGMENT ===");
+            Console.WriteLine($"📝 Nota ID: {id}");
+            Console.WriteLine($"👤 CoordinatorUserId: {dto.CoordinatorUserId}");
+            Console.WriteLine($"✅ IsAcknowledged: {dto.IsAcknowledged}");
+            
             var note = await _context.ShiftHandOffNotes
                 .Include(n => n.Acknowledgements)
                 .FirstOrDefaultAsync(n => n.Id == id);
 
             if (note == null)
             {
+                Console.WriteLine("❌ Nota no encontrada");
                 return NotFound(new { message = "Nota no encontrada" });
+            }
+
+            Console.WriteLine($"📋 Nota encontrada: {note.Id}, acknowledgements count: {note.Acknowledgements.Count}");
+            foreach (var ack in note.Acknowledgements)
+            {
+                Console.WriteLine($"  🔄 Existing ack: CoordinatorUserId={ack.CoordinatorUserId}, IsAcknowledged={ack.IsAcknowledged}");
             }
 
             var currentUser = await GetCurrentUserAsync();
             if (currentUser == null)
             {
+                Console.WriteLine("❌ Usuario no autenticado");
                 return Unauthorized(new { message = "Usuario no autenticado" });
             }
 
@@ -198,11 +299,14 @@ namespace ExcelProcessorApi.Controllers
                 ? dto.CoordinatorUserId ?? currentUser.Id
                 : currentUser.Id;
 
+            Console.WriteLine($"🎯 TargetCoordinatorId: {targetCoordinatorId}, User: {currentUser.Username}, Role: {currentUser.Role?.Name}");
+
             if (currentUser.Role?.Name != RoleNames.Administrator)
             {
                 var isCoordinator = await _context.Users.AnyAsync(u => u.Id == currentUser.Id && u.Role.Name == RoleNames.Coordinator);
                 if (!isCoordinator)
                 {
+                    Console.WriteLine("❌ Usuario no es coordinador");
                     return Forbid();
                 }
             }
@@ -210,6 +314,7 @@ namespace ExcelProcessorApi.Controllers
             var acknowledgement = note.Acknowledgements.FirstOrDefault(a => a.CoordinatorUserId == targetCoordinatorId);
             if (acknowledgement == null)
             {
+                Console.WriteLine($"➕ Creando nuevo acknowledgement para CoordinatorUserId: {targetCoordinatorId}");
                 acknowledgement = new ShiftHandOffAcknowledgement
                 {
                     NoteId = note.Id,
@@ -224,27 +329,38 @@ namespace ExcelProcessorApi.Controllers
             acknowledgement.UpdatedByUserId = currentUser.Id;
             note.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync();
+            Console.WriteLine($"💾 Guardando cambios: IsAcknowledged={acknowledgement.IsAcknowledged}, AcknowledgedAt={acknowledgement.AcknowledgedAt}");
 
-            var updatedAcknowledgement = await _context.ShiftHandOffAcknowledgements
+            var saveResult = await _context.SaveChangesAsync();
+            Console.WriteLine($"✅ SaveChangesAsync result: {saveResult} filas afectadas");
+
+            // Verificar que se guardó correctamente
+            var savedAcknowledgement = await _context.ShiftHandOffAcknowledgements
                 .Include(a => a.CoordinatorUser)
                 .AsNoTracking()
                 .FirstAsync(a => a.Id == acknowledgement.Id);
+            
+            Console.WriteLine($"✅ Verificación post-guardado: CoordinatorUserId={savedAcknowledgement.CoordinatorUserId}, IsAcknowledged={savedAcknowledgement.IsAcknowledged}, AcknowledgedAt={savedAcknowledgement.AcknowledgedAt}");
 
-            return Ok(new
+            var response = new
             {
                 acknowledgement = new
                 {
-                    updatedAcknowledgement.NoteId,
-                    updatedAcknowledgement.CoordinatorUserId,
-                    CoordinatorName = updatedAcknowledgement.CoordinatorUser != null
-                        ? ($"{updatedAcknowledgement.CoordinatorUser.FirstName} {updatedAcknowledgement.CoordinatorUser.LastName}").Trim()
+                    savedAcknowledgement.NoteId,
+                    savedAcknowledgement.CoordinatorUserId,
+                    CoordinatorName = savedAcknowledgement.CoordinatorUser != null
+                        ? ($"{savedAcknowledgement.CoordinatorUser.FirstName} {savedAcknowledgement.CoordinatorUser.LastName}").Trim()
                         : string.Empty,
-                    CoordinatorUsername = updatedAcknowledgement.CoordinatorUser?.Username ?? string.Empty,
-                    updatedAcknowledgement.IsAcknowledged,
-                    updatedAcknowledgement.AcknowledgedAt
+                    CoordinatorUsername = savedAcknowledgement.CoordinatorUser?.Username ?? string.Empty,
+                    savedAcknowledgement.IsAcknowledged,
+                    AcknowledgedAt = EnsureUtc(savedAcknowledgement.AcknowledgedAt)
                 }
-            });
+            };
+
+            Console.WriteLine($"📤 Enviando respuesta: {System.Text.Json.JsonSerializer.Serialize(response)}");
+            Console.WriteLine($"=== FIN DEBUG BACKEND ===");
+
+            return Ok(response);
         }
 
         [HttpDelete("{id}")]
@@ -286,10 +402,12 @@ namespace ExcelProcessorApi.Controllers
                 note.Id,
                 note.Description,
                 note.Status,
+                note.Type,
                 note.AssignedCoordinatorId,
                 CreatedAt = EnsureUtc(note.CreatedAt),
                 UpdatedAt = EnsureUtc(note.UpdatedAt),
                 FinalizedAt = EnsureUtc(note.FinalizedAt),
+                FinalizedByUserId = note.FinalizedByUserId,  // ← AGREGAR ESTA LÍNEA
                 FinalizedBy = note.FinalizedByUser != null
                     ? new
                     {

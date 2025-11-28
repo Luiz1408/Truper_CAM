@@ -17,6 +17,9 @@ namespace ExcelProcessorApi.Models
         [MaxLength(50)]
         public string Status { get; set; } = "Pendiente";
 
+        [MaxLength(20)]
+        public string Type { get; set; } = "informativo"; // "informativo" o "seguimiento"
+
         public int? AssignedCoordinatorId { get; set; }
 
         [ForeignKey(nameof(AssignedCoordinatorId))]

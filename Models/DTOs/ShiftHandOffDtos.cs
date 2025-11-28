@@ -19,7 +19,14 @@ namespace ExcelProcessorApi.Models.DTOs
         [MaxLength(50)]
         public string? Status { get; set; }
 
+        [MaxLength(20)]
+        public string? Type { get; set; }
+
         public int? AssignedCoordinatorId { get; set; }
+
+        // Campos para finalización
+        public string? FinalizedAt { get; set; }
+        public int? FinalizedByUserId { get; set; }
 
         public List<ShiftHandOffAcknowledgementDto> Acknowledgements { get; set; } = new();
     }
