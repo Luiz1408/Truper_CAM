@@ -31,7 +31,7 @@ namespace ExcelProcessorApi.Models
         public DateTime FechaCreacion { get; set; } = DateTime.Now;
 
         // Propiedad para metadatos de incidencias
-        [Column(TypeName = "nvarchar(max)")]
+        [Column(TypeName = "text")]
         public string? IncidenceMetadata { get; set; }
 
         // Usuario que subió el archivo

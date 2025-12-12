@@ -48,6 +48,35 @@ namespace ExcelProcessorApi.Controllers
             }
         }
 
+        [HttpGet("role/{role}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetUsersByRole(string role)
+        {
+            try
+            {
+                var users = await _context.Users
+                    .Include(u => u.Role)
+                    .Where(u => u.IsActive && u.Role != null && u.Role.Name.ToLower() == role.ToLower())
+                    .OrderBy(u => u.FirstName)
+                    .ThenBy(u => u.LastName)
+                    .Select(u => new
+                    {
+                        u.Id,
+                        FullName = (u.FirstName + " " + u.LastName).Trim(),
+                        u.Username,
+                        u.FirstName,
+                        u.LastName
+                    })
+                    .ToListAsync();
+
+                return Ok(users);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = $"Error al obtener usuarios con rol {role}: {ex.Message}" });
+            }
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetUsers([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
@@ -149,7 +178,7 @@ namespace ExcelProcessorApi.Controllers
                     LastName = createUserDto.LastName,
                     RoleId = createUserDto.RoleId,
                     IsActive = true,
-                    CreatedAt = DateTime.Now
+                    CreatedAt = DateTime.UtcNow
                 };
 
                 _context.Users.Add(user);

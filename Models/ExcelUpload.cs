@@ -22,7 +22,7 @@ namespace ExcelProcessorApi.Models
         [MaxLength(255)]
         public string SheetName { get; set; } = string.Empty;
 
-        [Column(TypeName = "nvarchar(max)")]
+        [Column(TypeName = "text")]
         public string HeadersJson { get; set; } = string.Empty;
 
         public int TotalRows { get; set; }

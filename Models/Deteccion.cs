@@ -18,7 +18,7 @@ namespace ExcelProcessorApi.Models
 
         public int RowIndex { get; set; }
 
-        [Column(TypeName = "nvarchar(max)")]
+        [Column(TypeName = "text")]
         public string DataJson { get; set; } = string.Empty;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

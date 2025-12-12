@@ -36,7 +36,7 @@ namespace ExcelProcessorApi.Controllers
                 }
 
                 // Update last login
-                user.LastLogin = DateTime.Now;
+                user.LastLogin = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
 
                 var token = _jwtService.GenerateToken(user.Username, user.Role?.Name ?? "User");
@@ -98,7 +98,7 @@ namespace ExcelProcessorApi.Controllers
                     LastName = registerDto.LastName,
                     RoleId = registerDto.RoleId,
                     IsActive = true,
-                    CreatedAt = DateTime.Now
+                    CreatedAt = DateTime.UtcNow
                 };
 
                 _context.Users.Add(user);

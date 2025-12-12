@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ExcelProcessorApi.Data;
+using Npgsql.EntityFrameworkCore.PostgreSQL;
+
 using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -16,7 +18,7 @@ ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
 // Add services to the container.
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Agrega esto después de AddDbContext
 builder.Services.AddScoped<JwtService>();
@@ -210,6 +212,17 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         Console.WriteLine($"❌ Error inicializando la base de datos: {ex.Message}");
+    }
+
+    // Inicializar catálogos
+    try
+    {
+        await DbInitializer.Initialize(dbContext);
+        Console.WriteLine("✅ Catálogos inicializados correctamente");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"❌ Error inicializando catálogos: {ex.Message}");
     }
 }
 

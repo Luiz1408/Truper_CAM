@@ -17,6 +17,13 @@ namespace ExcelProcessorApi.Data
         public DbSet<ShiftHandOffAcknowledgement> ShiftHandOffAcknowledgements { get; set; }
         public DbSet<TechnicalActivity> TechnicalActivities { get; set; }
         public DbSet<TechnicalActivityImage> TechnicalActivityImages { get; set; }
+        
+        // Nuevas tablas para folios
+        public DbSet<Catalogo> Catalogos { get; set; }
+        public DbSet<RevisionFolio> RevisionFolios { get; set; }
+        public DbSet<DeteccionFolio> DeteccionFolios { get; set; }
+        public DbSet<ContadorFolios> ContadorFolios { get; set; }
+        public DbSet<AlmacenUbicacionFolio> AlmacenUbicacionFolios { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -65,7 +72,7 @@ namespace ExcelProcessorApi.Data
                     .IsRequired(false);
 
                 entity.Property(e => e.FechaCreacion)
-                    .HasDefaultValueSql("GETDATE()");
+                    .HasDefaultValueSql("NOW()");
 
                 entity.HasOne(e => e.UploadedByUser)
                     .WithMany()
@@ -95,7 +102,7 @@ namespace ExcelProcessorApi.Data
                     .IsRequired(false);
 
                 entity.Property(e => e.UploadedAt)
-                    .HasDefaultValueSql("GETUTCDATE()");
+                    .HasDefaultValueSql("NOW()");
 
                 entity.HasOne(e => e.UploadedByUser)
                     .WithMany()
@@ -119,7 +126,7 @@ namespace ExcelProcessorApi.Data
                     .IsRequired();
 
                 entity.Property(e => e.CreatedAt)
-                    .HasDefaultValueSql("GETUTCDATE()");
+                    .HasDefaultValueSql("NOW()");
             });
 
             modelBuilder.Entity<Revision>(entity =>
@@ -128,7 +135,7 @@ namespace ExcelProcessorApi.Data
                     .IsRequired();
 
                 entity.Property(e => e.CreatedAt)
-                    .HasDefaultValueSql("GETUTCDATE()");
+                    .HasDefaultValueSql("NOW()");
             });
 
             modelBuilder.Entity<ShiftHandOffNote>(entity =>
@@ -142,10 +149,10 @@ namespace ExcelProcessorApi.Data
                     .HasDefaultValue("Pendiente");
 
                 entity.Property(e => e.CreatedAt)
-                    .HasDefaultValueSql("GETUTCDATE()");
+                    .HasDefaultValueSql("NOW()");
 
                 entity.Property(e => e.UpdatedAt)
-                    .HasDefaultValueSql("GETUTCDATE()");
+                    .HasDefaultValueSql("NOW()");
 
                 entity.HasOne(e => e.AssignedCoordinator)
                     .WithMany()
@@ -239,10 +246,10 @@ namespace ExcelProcessorApi.Data
                     .HasMaxLength(1000);
 
                 entity.Property(a => a.CreatedAt)
-                    .HasDefaultValueSql("GETUTCDATE()");
+                    .HasDefaultValueSql("NOW()");
 
                 entity.Property(a => a.UpdatedAt)
-                    .HasDefaultValueSql("GETUTCDATE()");
+                    .HasDefaultValueSql("NOW()");
 
                 entity.HasOne(a => a.CreatedByUser)
                     .WithMany()
@@ -282,7 +289,7 @@ namespace ExcelProcessorApi.Data
                     .HasMaxLength(2000);
 
                 entity.Property(i => i.CreatedAt)
-                    .HasDefaultValueSql("GETUTCDATE()");
+                    .HasDefaultValueSql("NOW()");
 
                 entity.HasOne(i => i.TechnicalActivity)
                     .WithMany(a => a.Images)
@@ -314,7 +321,7 @@ namespace ExcelProcessorApi.Data
                     .HasMaxLength(100);
 
                 entity.Property(u => u.CreatedAt)
-                    .HasDefaultValueSql("GETDATE()");
+                    .HasDefaultValueSql("NOW()");
 
                 entity.HasOne(u => u.Role)
                     .WithMany()
@@ -334,16 +341,80 @@ namespace ExcelProcessorApi.Data
                         LastName = "Sistema",
                         RoleId = 1,
                         IsActive = true,
-                        CreatedAt = new DateTime(2025, 11, 10, 9, 45, 3, 932, DateTimeKind.Local).AddTicks(3187),
+                        CreatedAt = new DateTime(2025, 11, 10, 9, 45, 3, 932, DateTimeKind.Utc).AddTicks(3187),
                         LastLogin = null
                     });
+            });
+
+            modelBuilder.Entity<Catalogo>(entity =>
+            {
+                entity.Property(e => e.Tipo)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.Valor)
+                    .IsRequired()
+                    .HasMaxLength(200);
+
+                entity.Property(e => e.Descripcion)
+                    .HasMaxLength(500);
+
+                entity.Property(e => e.FechaCreacion)
+                    .HasDefaultValueSql("NOW()");
+
+                entity.HasIndex(e => new { e.Tipo, e.Valor })
+                    .IsUnique();
+            });
+
+            modelBuilder.Entity<RevisionFolio>(entity =>
+            {
+                entity.Property(e => e.Folio1)
+                    .IsRequired()
+                    .HasMaxLength(10);
+
+                entity.Property(e => e.Folio2)
+                    .IsRequired()
+                    .HasMaxLength(10);
+
+                entity.Property(e => e.Acumulado)
+                    .IsRequired()
+                    .HasMaxLength(10);
+
+                entity.Property(e => e.FechaCreacion)
+                    .HasDefaultValueSql("NOW()");
+            });
+
+            modelBuilder.Entity<DeteccionFolio>(entity =>
+            {
+                entity.Property(e => e.Folio1)
+                    .IsRequired()
+                    .HasMaxLength(10);
+
+                entity.Property(e => e.Folio2)
+                    .IsRequired()
+                    .HasMaxLength(10);
+
+                entity.Property(e => e.Acumulado)
+                    .IsRequired()
+                    .HasMaxLength(10);
+
+                entity.Property(e => e.FechaCreacion)
+                    .HasDefaultValueSql("NOW()");
+            });
+
+            modelBuilder.Entity<ContadorFolios>(entity =>
+            {
+                entity.Property(e => e.Fecha)
+                    .IsRequired();
+
+                entity.HasIndex(e => e.Fecha)
+                    .IsUnique();
             });
         }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.ConfigureWarnings(warnings => 
-                warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+            // Configuración de warnings para .NET 8.0
         }
     }
 }

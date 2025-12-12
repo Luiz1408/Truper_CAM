@@ -68,12 +68,27 @@ namespace ExcelProcessorApi.Controllers
         {
             var normalizedLookup = BuildNormalizedLookup(rowData);
 
+            // Campos específicos para revisiones
+            var fechaRegistroRaw = GetFieldValue(normalizedLookup, "FECHADEREGISTRO", "FECHAREGISTRO", "REGISTRO", "FECHA DE REGISTRO");
+            var fechaIncidenteRaw = GetFieldValue(normalizedLookup, "FECHADEINCIDENTE", "FECHAINCIDENTE", "INCIDENTE", "FECHA DE INCIDENTE");
+            var diasEnEsperaRaw = GetFieldValue(normalizedLookup, "DIASENESPERA", "DIAS_EN_ESPERA", "DIAS", "DIASESPERA");
+            var almacen = GetFieldValue(normalizedLookup, "ALMACEN", "SUCURSAL", "ALMACEN_SUCURSAL");
+            var nombreCorreo = GetFieldValue(normalizedLookup, "NOMBREDECORREO", "NOMBRECORREO", "CORREO", "NOMBRE DEL CORREO");
+            var montoRaw = GetFieldValue(normalizedLookup, "MONTO");
+            var areaSolicita = GetFieldValue(normalizedLookup, "AREAQUESOLICITA", "AREA_SOLICITA", "AREA", "AREA QUE SOLICITA");
+            var indicador = GetFieldValue(normalizedLookup, "INDICADOR");
+            var quienRealiza = GetFieldValue(normalizedLookup, "QUIENREALIZA", "QUIEN_REALIZA", "REALIZA");
+            var fechaAsignadaRaw = GetFieldValue(normalizedLookup, "FECHAASIGNADA", "FECHA_ASIGNADA", "ASIGNADA", "FECHA ASIGNADA");
+            var estatus = GetFieldValue(normalizedLookup, "ESTATUS", "STATUS");
+            var fechaEnviaRaw = GetFieldValue(normalizedLookup, "FECHAENVIA", "FECHA_QUE_SE_ENVIA", "ENVIA", "FECHA QUE SE ENVIA");
+            var comentariosGenerales = GetFieldValue(normalizedLookup, "COMENTARIOSGENERALES", "COMENTARIOS_GENERALES", "COMENTARIOS");
+
+            // Mantener compatibilidad con campos anteriores
             var mesRaw = GetFieldValue(normalizedLookup, "MES", "MESINCIDENCIA", "FECHA", "MESREPORTE");
             var mes = ParseMonthValue(mesRaw, upload.UploadedAt);
-            var almacen = GetFieldValue(normalizedLookup, "ALMACEN", "ALMACENDESTINO", "ALMACENORIGEN");
             var monitorista = GetFieldValue(normalizedLookup, "MONITORISTAQUIENREPORTA", "MONITORISTA", "REPORTA");
             var coordinador = GetFieldValue(normalizedLookup, "COORDINADORENTURNO", "COORDINADOR", "COORD");
-            var fechaEnvioRaw = GetFieldValue(
+            var fechaEnvio = NormalizeDateValue(fechaEnviaRaw ?? GetFieldValue(
                 normalizedLookup,
                 "FECHADEENVIO",
                 "FECHAENVIO",
@@ -88,8 +103,7 @@ namespace ExcelProcessorApi.Controllers
                 "FECHA EN QUE SE ENVIA",
                 "FECHAENVIADA",
                 "FECHA"
-            );
-            var fechaEnvio = NormalizeDateValue(fechaEnvioRaw);
+            ));
 
             var columna1 = GetColumnValue(headers, rowData, 0);
             var columna2 = GetColumnValue(headers, rowData, 1);
